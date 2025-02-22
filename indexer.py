@@ -102,11 +102,11 @@ if __name__ == "__main__":
     # Step 2: Load and process JSON files
     indexer.load_json_files()
 
-    # Step 3: Merge partial indexes
+    # Step 6: Merge partial indexes
     indexer.merge_partial_indexes()
 
-    # Step 4: Compute statistics
+    # Step 7: Compute statistics
     indexer.compute_statistics()
 
-    # Step 5: Generate final report
+    # Step 8: Generate final report
     indexer.generate_report()
