@@ -1,6 +1,15 @@
 import os
 import json
 from collections import defaultdict
+import re
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
+from nltk.corpus import stopwords
+from bs4 import BeautifulSoup
+
+ps = PorterStemmer()
+stop_words = set(stopwords.words('english'))
 
 class Indexer:
     def __init__(self, data_folder: str, output_dir: str):
@@ -28,6 +37,7 @@ class Indexer:
                     file_path = os.path.join(root, file)
                     # Step 2: extract raw HTML from json file
                     raw_html = self.extract_text_from_json(file_path)
+                    print(f"Processing file: {file_path}")
                     # Step 3: clean HTML, extract text and tokenize
                     tokens = self.clean_text(raw_html)
                     # Step 4: add tokens to the global inverted index
@@ -47,7 +57,14 @@ class Indexer:
         :param file_path: Path to JSON file.
         :return: Extracted raw HTML.
         """
-        pass  
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                raw_html = data.get("content", "")  # Extract HTML
+                return raw_html
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+            return ""
 
     def clean_text(self, raw_html: str) -> list:
         """
@@ -55,7 +72,20 @@ class Indexer:
         :param raw_html: HTML content.
         :return: List of cleaned tokens.
         """
-        pass # stemmer, stopwords
+        soup = BeautifulSoup(raw_html, "lxml")
+
+        # Extract text from HTML
+        for script in soup(["script", "style"]):
+            script.extract()
+        text = soup.get_text()
+
+        # Tokenization
+        words = word_tokenize(text.lower())
+
+        # Remove non-alphanumeric characters & stopwords, then apply stemming
+        tokens = [ps.stem(w) for w in words if w.isalnum() and w not in stop_words]
+
+        return tokens
 
     def build_inverted_index(self, tokens: list, doc_id: str):
         """
@@ -99,42 +129,29 @@ class Indexer:
         Step 6: Merge all partial indexes into a final index.
         """
         # Read and combine multiple index files
-
         merged_index = defaultdict(dict)
-        
-        for index_file in os.listdir(self.output_dir):
-            if index_file.endswith(".json"):  # Change to JSON files
-                with open(os.path.join(self.output_dir, index_file), "r") as f:
-                    partial_index = json.load(f)  # Load JSON as dictionary
-                    
-                    for word, doc_data in partial_index.items():
-                        if word not in merged_index:
-                            merged_index[word] = doc_data
+        index_files = [f for f in os.listdir(self.output_dir) if f.startswith("index_part_")]
+
+        for index_file in index_files:
+            index_path = os.path.join(self.output_dir, index_file)
+
+            with open(index_path, "r") as f:
+                partial_index = json.load(f)
+
+                for word, doc_data in partial_index.items():
+                    for doc_id, positions in doc_data.items():
+                        if doc_id not in merged_index[word]:
+                            merged_index[word][doc_id] = positions
                         else:
-                            for doc_id, positions in doc_data.items():
-                                if doc_id not in merged_index[word]:
-                                    merged_index[word][doc_id] = positions
-                                else:
-                                    merged_index[word][doc_id].extend(positions)
+                            merged_index[word][doc_id].extend(positions)
 
-        self.unique_tokens = len(merged_index) 
-
-        # Save final merged index as JSON
-        final_index_file = os.path.join(self.output_dir, "final_inverted_index.json")
-        with open(final_index_file, "w") as f:
+        # Save final merged index
+        final_index_path = os.path.join(self.output_dir, "final_inverted_index.json")
+        with open(final_index_path, "w") as f:
             json.dump(merged_index, f, indent=4)
-        
-        print(f"Merged final index saved at {final_index_file}")
 
-        # Printing just to see the index if its coming along fine or not 
-        print("\n===== SAMPLE MERGED INDEX =====")
-        for i, (word, postings) in enumerate(merged_index.items()):
-            print(f"{word}: {postings}")  # Print full postings list for a word
-            if i >= 5:  # Print only first 5 words
-                break
-        print("==============================\n")
-
-
+        self.unique_tokens = len(merged_index)  # Update token count
+        print(f"Merged final index saved at {final_index_path}")
 
     def compute_statistics(self):
         """
@@ -144,13 +161,17 @@ class Indexer:
 
         total_documents = self.doc_count  # Number of docs processed
         unique_terms = self.unique_tokens  # Retrieved directly
+        index_size = sum(os.path.getsize(os.path.join(self.output_dir, f)) 
+                     for f in os.listdir(self.output_dir) if f.endswith(".json")) // 1024
 
         print(f"Total Documents: {total_documents}")
         print(f"Unique Terms: {unique_terms}")
+        print(f"Total Index Size (KB): {index_size}") 
 
         with open(os.path.join(self.output_dir, "index_report.txt"), "w") as f:
             f.write(f"Total Documents: {total_documents}\n")
             f.write(f"Unique Terms: {unique_terms}\n")
+            f.write(f"Total Index Size (KB): {index_size}")
 
         print("Index report saved successfully.")
 
@@ -175,7 +196,7 @@ if __name__ == "__main__":
     indexer.load_json_files()
 
     # Step 6: Merge partial indexes
-    indexer.merge_partial_indexes()
+    indexer.merge_partial_indexes_json()
 
     # Step 7: Compute statistics and writes to a txt file 
     indexer.compute_statistics()
