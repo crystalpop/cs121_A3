@@ -32,12 +32,13 @@ class Indexer:
                 if file.endswith(".json"):
                     file_path = os.path.join(root, file)
                     # Step 2: extract raw HTML from json file
-                    raw_html = self.extract_text_from_json(file_path)
+                    raw_html, url = self.extract_text_from_json(file_path)
                     # Step 3: clean HTML, extract text and tokenize
                     tokens = self.clean_text(raw_html)
                     # Step 4: add tokens to the global inverted index
-                    self.build_inverted_index(tokens, doc_id=file)
+                    self.build_inverted_index(tokens, doc_id=self.doc_count)
 
+                    DOC_ID_DICT[url] = self.doc_count
                     self.doc_count += 1
                     
                     # save partial index every 5000 docs
@@ -56,7 +57,8 @@ class Indexer:
             with open(file_path, 'r') as file:
                 data = json.load(file)
                 html = data['content']
-                return html  
+                url = data['url']
+                return (html, url)
         except Exception as e:
             print(e)
           
