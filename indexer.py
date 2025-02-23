@@ -163,7 +163,8 @@ class Indexer:
 
         total_documents = self.doc_count  # Number of docs processed
         unique_terms = self.unique_tokens  # Retrieved directly
-        index_size = sum(os.path.getsize("final_inverted_index.json")) // 1024
+        index_file_path = os.path.join("index_files", "final_inverted_index.json")  
+        index_size = os.path.getsize(index_file_path) // 1024
 
         print(f"Total Documents: {total_documents}")
         print(f"Unique Terms: {unique_terms}")
