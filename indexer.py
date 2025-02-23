@@ -49,6 +49,12 @@ class Indexer:
                     if self.doc_count % self.batch_size == 0:
                         self.save_partial_index()
                         self.inverted_index.clear() # partial index cleared
+
+                    '''# save partial index every 5000 docs
+                    if self.doc_count % self.batch_size == 0:
+                        self.save_partial_index()
+                        self.inverted_index.clear()
+                        print(f"Saved partial index at {self.doc_count} documents.")'''
               
 
     def extract_text_from_json(self, file_path: str) -> str:
@@ -58,13 +64,12 @@ class Indexer:
         :return: Extracted raw HTML.
         """
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                raw_html = data.get("content", "")  # Extract HTML
-                return raw_html
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+                html = data['content']
+                return html  
         except Exception as e:
-            print(f"Error reading {file_path}: {e}")
-            return ""
+            print(e)
 
     def clean_text(self, raw_html: str) -> list:
         """
@@ -72,20 +77,17 @@ class Indexer:
         :param raw_html: HTML content.
         :return: List of cleaned tokens.
         """
-        soup = BeautifulSoup(raw_html, "lxml")
-
-        # Extract text from HTML
-        for script in soup(["script", "style"]):
-            script.extract()
+        #TODO: deal with broken html: i think bs4 automatically handles that
+        soup = BeautifulSoup(raw_html, 'lxml')
         text = soup.get_text()
+        tokenizer = RegexpTokenizer(r'[A-Za-z0-9]+')
+        tokens = tokenizer.tokenize(text)
+        stems = []
+        stemmer = stem.PorterStemmer()
+        for token in tokens:
+            stems.append(stemmer.stem(token))
+        return stems
 
-        # Tokenization
-        words = word_tokenize(text.lower())
-
-        # Remove non-alphanumeric characters & stopwords, then apply stemming
-        tokens = [ps.stem(w) for w in words if w.isalnum() and w not in stop_words]
-
-        return tokens
 
     def build_inverted_index(self, tokens: list, doc_id: str):
         """
@@ -161,8 +163,7 @@ class Indexer:
 
         total_documents = self.doc_count  # Number of docs processed
         unique_terms = self.unique_tokens  # Retrieved directly
-        index_size = sum(os.path.getsize(os.path.join(self.output_dir, f)) 
-                     for f in os.listdir(self.output_dir) if f.endswith(".json")) // 1024
+        index_size = sum(os.path.getsize("final_inverted_index.json")) // 1024
 
         print(f"Total Documents: {total_documents}")
         print(f"Unique Terms: {unique_terms}")
