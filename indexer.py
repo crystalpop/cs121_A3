@@ -1,6 +1,11 @@
 import os
 import json
 from collections import defaultdict
+from bs4 import BeautifulSoup
+from nltk.tokenize import RegexpTokenizer
+from nltk import stem
+
+DOC_ID_DICT = {}
 
 class Indexer:
     def __init__(self, data_folder: str, output_dir: str):
@@ -47,7 +52,14 @@ class Indexer:
         :param file_path: Path to JSON file.
         :return: Extracted raw HTML.
         """
-        pass  
+        try:
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+                html = data['content']
+                return html  
+        except Exception as e:
+            print(e)
+          
 
     def clean_text(self, raw_html: str) -> list:
         """
@@ -55,7 +67,19 @@ class Indexer:
         :param raw_html: HTML content.
         :return: List of cleaned tokens.
         """
-        pass # stemmer, stopwords
+        #TODO: deal with broken html: i think bs4 automatically handles that
+        soup = BeautifulSoup(raw_html, 'lxml')
+        text = soup.get_text()
+        tokenizer = RegexpTokenizer(r'[A-Za-z0-9]+')
+        tokens = tokenizer.tokenize(text)
+        stems = []
+        stemmer = stem.PorterStemmer()
+        for token in tokens:
+            stems.append(stemmer.stem(token))
+        return stems
+
+
+
 
     def build_inverted_index(self, tokens: list, doc_id: str):
         """
