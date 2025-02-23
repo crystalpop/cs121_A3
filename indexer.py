@@ -7,6 +7,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from bs4 import BeautifulSoup
+from nltk.tokenize import RegexpTokenizer
 
 ps = PorterStemmer()
 stop_words = set(stopwords.words('english'))
@@ -50,11 +51,10 @@ class Indexer:
                         self.save_partial_index()
                         self.inverted_index.clear() # partial index cleared
 
-                    '''# save partial index every 5000 docs
-                    if self.doc_count % self.batch_size == 0:
-                        self.save_partial_index()
-                        self.inverted_index.clear()
-                        print(f"Saved partial index at {self.doc_count} documents.")'''
+                    '''# early stop 15000 docs
+                    if self.doc_count == 15000:
+                        print("Stopping after processing 15,000 documents.")
+                        return'''
               
 
     def extract_text_from_json(self, file_path: str) -> str:
@@ -82,10 +82,10 @@ class Indexer:
         text = soup.get_text()
         tokenizer = RegexpTokenizer(r'[A-Za-z0-9]+')
         tokens = tokenizer.tokenize(text)
-        stems = []
-        stemmer = stem.PorterStemmer()
-        for token in tokens:
-            stems.append(stemmer.stem(token))
+        
+        stemmer = PorterStemmer()
+        stems = [stemmer.stem(token) for token in tokens]
+        
         return stems
 
 

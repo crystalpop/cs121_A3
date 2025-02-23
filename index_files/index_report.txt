@@ -1,0 +1,3 @@
+Total Documents: 15
+Unique Terms: 1118
+Total Index Size (KB): 374
