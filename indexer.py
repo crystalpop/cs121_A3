@@ -143,7 +143,7 @@ class Indexer:
     
     def merge_partial_indexes_json(self):
         """
-        Step 6: Merge all partial indexes into a final index.
+        Merge all partial indexes into a final index.
         """
         # Read and combine multiple index files
 
@@ -179,7 +179,6 @@ class Indexer:
                 # Pop the smallest token from the heap.
                 token, file_idx, postings, iterator, f = heapq.heappop(heap)
                 merged_postings = list(postings)  # start with this file's postings
-                # self.unique_tokens += 1
 
                 # Check if other partial indexes have the same token.
                 while heap and heap[0][0] == token:
@@ -221,7 +220,7 @@ class Indexer:
 
     def compute_statistics(self):
         """
-        Step 7: Compute report statistics (total documents, unique words, index size).
+        Compute report statistics (total documents, unique words, index size).
         """
         # Count total docs, unique words, and index size
 
@@ -241,15 +240,10 @@ class Indexer:
 
         print("Index report saved successfully.")
 
-    # def generate_report(self): --> Doing this in previous func itself 
-        """
-        Step 8: Generate a report with index statistics.
-        """
-         # Save report to a text file
 
 
 if __name__ == "__main__":
-    # Step 1: Initialize Indexer
+    # Initialize Indexer
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     DATASET_PATH = os.path.join(BASE_DIR, "DEV")
@@ -258,14 +252,11 @@ if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     indexer = Indexer(data_folder=DATASET_PATH, output_dir=OUTPUT_DIR)
-    # Step 2: Load and process JSON files
+    # Load and process JSON files
     indexer.load_json_files()
 
-    # Step 6: Merge partial indexes
+    # Merge partial indexes
     indexer.merge_partial_indexes_json()
 
-    # Step 7: Compute statistics and writes to a txt file 
+    # Compute statistics and writes to a txt file 
     indexer.compute_statistics()
-
-    # Step 8: Generate final report
-    # indexer.generate_report()
