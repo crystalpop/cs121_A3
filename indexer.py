@@ -9,7 +9,6 @@ import heapq
 
 DOC_ID_DICT = {}
 
-#TODO: comment about time complexity and memory efficiency
 
 """
 Our index structure:
@@ -39,6 +38,10 @@ class Indexer:
     def load_json_files(self):
         """
         Load JSON files from dataset folder.
+
+        Time Complexity: O(m*n) , where n: number of json files in total and m: number of tokens in each file 
+        This function iterates through the entire folder with json files, read and tokenizes content from it and stores the info into 
+        inverted indexes. Each iteration of the for loop below takes O(m) time, hence n iterations require O(m*n) time.
         """
         for root, _ , files in os.walk(self.data_folder):
             for file in files:
@@ -69,6 +72,10 @@ class Indexer:
         Extract raw HTML content from content field.
         :param file_path: Path to JSON file.
         :return: Extracted raw HTML.
+
+        Time Complexity: constant time O(n) where n is the size of the file--> 
+        This function simply reads/parses the json to extract the html 
+        content and url and stores it into variables. 
         """
         try:
             with open(file_path, 'r') as file:
@@ -85,6 +92,10 @@ class Indexer:
         Clean raw HTML, extract text, tokenize.
         :param raw_html: HTML content.
         :return: List of cleaned tokens.
+
+        Time Complexity: O(n) --> 
+        Beautiful soup probably only needs one pass through the html for get_text, which is O(n).
+        The tokenizer and stemmer both run in linear time based on number of tokens.
         """
         # Beautiful soup should automatically handle broken html
         soup = BeautifulSoup(raw_html, 'lxml')
@@ -107,6 +118,10 @@ class Indexer:
         Build inverted index.
         :param tokens: List of processed words.
         :param doc_id: Unique document identifier.
+
+        Time Complexity: O(n) where n is the number of tokens --> 
+        Tterates through each token in tokens list and adds it to the 
+        inverted index.
         """
         # Loop through tokens and update inverted index
         for word in tokens:
@@ -115,12 +130,10 @@ class Indexer:
                 self.inverted_index[word].append({doc_id: 1}) # first posting
             else:
                 # Check if the last posting corresponds to the current document.
-                # Assuming that tokens come from one document at a time.
                 last_posting = self.inverted_index[word][-1]
                 if next(iter(last_posting)) == doc_id:
                     # Update existing posting: increment frequency and add new position.
                     last_posting[doc_id] += 1
-                    # last_posting['positions'].append(position)
                 else:
                     # Add a new posting for this document.
                     self.inverted_index[word].append({doc_id: 1})
@@ -130,6 +143,12 @@ class Indexer:
     def save_partial_index(self):
         """
         Save partial indexes every batch_size documents.
+
+        Time Complexity: O(n * p) linear time --> 
+        This function has to serialize every element of the partial index. 
+        Where n is the number of tokens, and p is the number of postings per token,
+        the function needs to convert each token and all of its postings,
+        resulting in O(n*p).
         """
         # Save a partial index file and reset memory
 
@@ -143,12 +162,25 @@ class Indexer:
     
     def merge_partial_indexes_json(self):
         """
-        Merge all partial indexes into a final index.
+        Multiway-merge all partial indexes into a final index using streaming with ijson.
+
+        Time Complexity: O(nlogk) -->
+        This function uses a min heap to extract the smallest tokens. 
+        Each push or pop from the heap takes O(logk) time where k is the number of partial index files.
+        Each token is pushed and popped from the heap once, so O(n) heap operations where
+        n is the number of tokens.
+        This results in O(nlogk) running time.
+
+        Memory:
+        This function is memory efficient because using streaming with ijson iterates over one token/posting list at a time.
+        We have as many streams as we have partial index files. This way we don't have to load entire partial indexes at a time.
+        The size of the heap is also equal the the number of partial indexes.
+        For each token/postings list pair we process, we immediately write it to a file and we don't store it in memory.
+        The memory usage grows with the number of partial indexes we create.
         """
         # Read and combine multiple index files
-
-        # merged_index = {}
         heap = []
+
         partial_index_files = [
         os.path.join(self.output_dir, fname)
         for fname in os.listdir(self.output_dir)
@@ -221,6 +253,9 @@ class Indexer:
     def compute_statistics(self):
         """
         Compute report statistics (total documents, unique words, index size).
+
+        Time Complexity: O(1) constant time --> 
+        as this function simply writes all statistics to a txt file 
         """
         # Count total docs, unique words, and index size
 
