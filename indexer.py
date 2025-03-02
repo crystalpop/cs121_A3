@@ -6,8 +6,9 @@ from nltk.tokenize import RegexpTokenizer
 from nltk import stem
 import ijson
 import heapq
+import bisect
 
-DOC_ID_DICT = {}
+
 
 
 """
@@ -31,6 +32,7 @@ class Indexer:
         self.partial_count = 1
         self.batch_size = 5000  # batch size, saved to global index every 5000 documents
         self.unique_tokens = 0  ##### ADDED A NEW PARAM TO MAKE TOKEN COUNTING EASIER 
+        self.docID_dict = {}
 
         # initialize other parameters
         self.doc_count = 0  # keep track of number of documents
@@ -54,7 +56,7 @@ class Indexer:
                     # Step 4: add tokens to the global inverted index
                     self.build_inverted_index(tokens, doc_id=self.doc_count)
 
-                    DOC_ID_DICT[self.doc_count] = url
+                    self.docID_dict[self.doc_count] = url
                     self.doc_count += 1
                     
                     # save partial index every 5000 docs
@@ -136,7 +138,10 @@ class Indexer:
                     last_posting[doc_id] += 1
                 else:
                     # Add a new posting for this document.
-                    self.inverted_index[word].append({doc_id: 1})
+                    doc_ids = [next(iter(posting)) for posting in self.inverted_index[word]]
+                    pos = bisect.bisect_left(doc_ids, doc_id)
+                    self.inverted_index[word].insert(pos, {doc_id: 1})
+                    # self.inverted_index[word].append({doc_id: 1})
 
 
 
@@ -295,3 +300,6 @@ if __name__ == "__main__":
 
     # Compute statistics and writes to a txt file 
     indexer.compute_statistics()
+    with open('docID_dict.json', "w") as f:
+    # Sort keys before writing to file
+        json.dump(indexer.docID_dict, f, sort_keys=True, indent=4)
