@@ -51,7 +51,7 @@ class BooleanSearch:
                     
                     # print(f"term: {term}")
                 except Exception as e:
-                    print(f"BUILD OFFSETS ERROR: {e}")
+                    # print(f"BUILD OFFSETS ERROR: {e}")
                     continue  # Ignore errors
         # print(f"term offsets: {term_offsets}")
         return term_offsets
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     #     else:
     #         print("No results found.")
 
-    print("Booting the search engine...")
+    print("Booting the search engine...\n")
     print('Type "exit" to quit\n' )
     while True:
         query = input("Enter a query: ").strip()
@@ -150,6 +150,6 @@ if __name__ == "__main__":
                 print(f"{i+1}. {url}")
         else:
             print("No results found.")
-        print("-----------------------------------------")
+        print("\n-----------------------------------------\n\n")
 
 
