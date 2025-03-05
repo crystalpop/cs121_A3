@@ -7,6 +7,7 @@ from nltk import stem
 import ijson
 import heapq
 import bisect
+import math
 
 
 
@@ -14,8 +15,7 @@ import bisect
 """
 Our index structure:
 Index = {
-            'word1': [{docID: frequency}, {docID2: frequency}],
-            'word2': [{docID2: frequency}, {docID3: frequency}]
+            'word1': [{docID: [frequency, tf-idf, [positions]]}, {docID2: [frequency, tf-idf, [positions]]}]
 }
 """
 
@@ -101,18 +101,27 @@ class Indexer:
         """
         # Beautiful soup should automatically handle broken html
         soup = BeautifulSoup(raw_html, 'lxml')
-        # Get only the human-readable text
-        text = soup.get_text()
+        # # Get only the human-readable text
+        # text = soup.get_text()
+
+        # Get regular text
+        regular_text = soup.get_text()
+        
+        # Extract and weight text from important tags
+        strong_text = " ".join(tag.get_text() for tag in soup.find_all(['strong', 'b']))
+        h1_text = " ".join(tag.get_text() for tag in soup.find_all('h1'))
+        
+        # Boost tokens: replicate the text or apply a weighting mechanism
+        boosted_text = regular_text + " " + (strong_text * 2) + " " + (h1_text * 3)
+
         # Alphnum characters only for tokenizer
         tokenizer = RegexpTokenizer(r'[A-Za-z0-9]+')
-        tokens = tokenizer.tokenize(text)
+        tokens = tokenizer.tokenize(boosted_text)
         stems = []
         stemmer = stem.PorterStemmer()
         for token in tokens:
             stems.append(stemmer.stem(token))
         return stems
-
-
 
 
     def build_inverted_index(self, tokens: list, doc_id: int):
@@ -122,26 +131,25 @@ class Indexer:
         :param doc_id: Unique document identifier.
 
         Time Complexity: O(n) where n is the number of tokens --> 
-        Tterates through each token in tokens list and adds it to the 
+        Iterates through each token in tokens list and adds it to the 
         inverted index.
         """
         # Loop through tokens and update inverted index
         for word in tokens:
             if word not in self.inverted_index:
                 self.inverted_index[word] = [] # list of postings
-                self.inverted_index[word].append({doc_id: 1}) # first posting
+                self.inverted_index[word].append({doc_id: [1]}) # first posting
             else:
                 # Check if the last posting corresponds to the current document.
                 last_posting = self.inverted_index[word][-1]
                 if next(iter(last_posting)) == doc_id:
                     # Update existing posting: increment frequency and add new position.
-                    last_posting[doc_id] += 1
+                    last_posting[doc_id][0] += 1
                 else:
                     # Add a new posting for this document.
                     doc_ids = [next(iter(posting)) for posting in self.inverted_index[word]]
                     pos = bisect.bisect_left(doc_ids, doc_id)
-                    self.inverted_index[word].insert(pos, {doc_id: 1})
-                    # self.inverted_index[word].append({doc_id: 1})
+                    self.inverted_index[word].insert(pos, {doc_id: [1]})
 
 
 
@@ -238,6 +246,18 @@ class Indexer:
 
                 self.unique_tokens += 1
 
+                # Compute document frequency (df) for this term.
+                df = len(merged_postings)
+                # Calculate the inverse document frequency using global document count (self.doc_count).
+                idf = math.log(self.doc_count / (df + 1))
+
+                # Calculate the tf-idf score for each document posting.
+                for posting in merged_postings:
+                    doc_id = next(iter(posting))
+                    freq = posting[doc_id][0]
+                    posting[doc_id].append(freq * idf)
+                
+
                 # Write the merged result for the token to the output file.
                 # We need to handle commas between JSON key–value pairs.
                 if not first_entry:
@@ -249,6 +269,9 @@ class Indexer:
                 out_f.write(json.dumps(merged_postings))    # Write the merged postings.
 
             out_f.write("\n}\n")
+
+        for file_path in partial_index_files:
+            os.remove(file_path)
 
         
         print(f"Merged final index saved at {final_index_file}")
@@ -266,7 +289,7 @@ class Indexer:
 
         total_documents = self.doc_count  # Number of docs processed
         unique_terms = self.unique_tokens  # Retrieved directly
-        index_file_path = os.path.join("index_files", "final_inverted_index.json")  
+        index_file_path = os.path.join(self.output_dir, "final_inverted_index.json")  
         index_size = os.path.getsize(index_file_path) // 1024
 
         print(f"Total Documents: {total_documents}")
@@ -287,7 +310,7 @@ if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     DATASET_PATH = os.path.join(BASE_DIR, "DEV")
-    OUTPUT_DIR = os.path.join(BASE_DIR, "index_files") 
+    OUTPUT_DIR = os.path.join(BASE_DIR, "index_files2") 
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
