@@ -2,16 +2,29 @@ import json
 import os
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import PorterStemmer
+import time
 
 class BooleanSearch:
-    def __init__(self, index_file: str, metadata_file):
+    def __init__(self, index_file: str, metadata_file:str, term_offsets_file: str):
         """
         Initialize Boolean search with a single large index file sorted alphabetically.
         """
+        start_time = time.time()
         self.index_file = index_file
         self.metadata = self.load_metadata(metadata_file)
         self.stemmer = PorterStemmer()
-        self.term_offsets = self.build_term_offsets()  # Binary search mapping
+        # self.term_offsets = self.build_term_offsets()  # Binary search mapping
+
+        if not os.path.exists(term_offsets_file):
+            print("Building term offsets")
+            self.term_offsets = self.build_term_offsets()  # Build and save term_offset
+        else:
+            with open(term_offsets_file, "r") as f:
+                self.term_offset = json.load(f)
+        
+        end_time = time.time()
+        init_time = (end_time - start_time) * 1000
+        print(f"Search Engine initialized in {init_time:.2f} ms.")
 
     def load_metadata(self, metadata_file: str):
         """ 
@@ -27,6 +40,7 @@ class BooleanSearch:
         Time complexity: O(n) where n is the number of terms in the index.
         """
         term_offsets = {}
+        index_of_index = {}
         with open(self.index_file, "r") as f:
             while True:
                 offset = f.tell()  # Get file position
@@ -43,8 +57,14 @@ class BooleanSearch:
                         term = next(iter(term_data.keys()))
                         term_offsets[term] = offset
 
+
+
                 except Exception as e:
                     continue  # Ignore errors
+
+        with open("term_offsets.json", "w") as f:
+            json.dump(term_offsets, f)
+
         return term_offsets
 
     def binary_search_term(self, term):
@@ -110,8 +130,9 @@ if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     INDEX_FILE = os.path.join(BASE_DIR, "index_files/final_inverted_index.json")
     METADATA_FILE = os.path.join(BASE_DIR, "docID_dict.json")
+    TERM_OFFSETS_FILE = os.path.join(BASE_DIR, "term_offsets.json")
     # Initialize search engine
-    search_engine = BooleanSearch(INDEX_FILE, METADATA_FILE)
+    search_engine = BooleanSearch(INDEX_FILE, METADATA_FILE, TERM_OFFSETS_FILE)
 
     
     print('Type "exit" to quit\n' )
