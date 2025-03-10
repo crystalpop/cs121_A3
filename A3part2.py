@@ -4,7 +4,7 @@ import math
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import PorterStemmer
 import time
-
+from nltk.corpus import stopwords
 import numpy as np
 
 class SearchEngine:
@@ -14,6 +14,7 @@ class SearchEngine:
         self.index_file = index_file
         self.metadata = self.load_metadata(metadata_file)
         self.stemmer = PorterStemmer()
+        self.stop_words = set(stopwords.words('english'))
 
         if not os.path.exists(term_offsets_file):
             print("Building term offsets")
@@ -106,18 +107,50 @@ class SearchEngine:
 
         return scores
 
+    def boolean_and_search(self, query_terms):
+        """Perform Boolean AND search using binary search."""
+        posting_lists = []
+
+        for term in query_terms:
+            postings_list = self.binary_search_term(term)
+            if postings_list:
+                term_doc_ids = set()
+                for posting in postings_list:
+                    term_doc_ids.update(posting.keys())
+                posting_lists.append(term_doc_ids)
+
+        if not posting_lists:
+            return []
+
+        common_docs = set.intersection(*posting_lists) if posting_lists else set()
+
+        results = [(self.metadata[doc_id], 1.0) for doc_id in common_docs if doc_id in self.metadata]
+
+        return results[:5]  # Return top 5 results
 
     def ranked_search(self, query: str):
-        """
-        Perform ranked search using cosine similarity.
-        """
+        """Decide between cosine similarity and Boolean search based on query characteristics."""
+        start_time = time.time()
         query_terms = self.preprocess_query(query)
-        scores = self.compute_cosine_similarity(query_terms)
-        # Sort by descending cos sim
-        ranked_results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-        # get top 5 
-        return [(self.metadata[doc_id], score) for doc_id, score in ranked_results[:5]]
+        num_stopwords = sum(1 for term in query_terms if term in self.stop_words)
+        stopword_ratio = num_stopwords / len(query_terms) if query_terms else 0
+        is_mostly_stopwords = stopword_ratio > 0.6  # If 60 percent stopwords
+
+        if len(query_terms) > 8 or is_mostly_stopwords:
+            results = self.boolean_and_search(query_terms)
+        else:
+            scores = self.compute_cosine_similarity(query_terms)
+            ranked_results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+            results = [(self.metadata[doc_id], score) for doc_id, score in ranked_results[:5]]
+
+        end_time = time.time()  
+        elapsed_time_ms = (end_time - start_time) * 1000  
+        print(f"\nSearch completed in {elapsed_time_ms:.2f} ms\n")
+
+        return results
+
+    
 
 if __name__ == "__main__":
     # File paths
@@ -145,3 +178,5 @@ if __name__ == "__main__":
         else:
             print("No results found.")
         print("\n-----------------------------------------\n\n")
+
+
