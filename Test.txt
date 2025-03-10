@@ -1,0 +1,32 @@
+Test Queries:
+
+academic advising ~ 33ms
+Ai ethics ~ 13ms
+database indexing ~ 45ms
+cybersecurity ~ 3 ms
+neural networks ~ 21 ms
+cloud computing ~ 81 ms
+software testing ~ 50 ms
+ACM publications ~ 47 ms
+efficient algorithms ~ 32 ms
+deep learning ~ 38 ms
+master of software engineering ~ 130 ms
+computer science, software engineering, programming, data structures, algorithms, machine learning, artificial intelligence, networking, database systems, operating systems, encryption, compilers, intelligent systems, and academic courses ~ 266 ms
+and the to ~ 133 ms
+and the to where then I they are for a is were ~ 289 ms
+impact of artificial intelligence on education ~ 132 ms
+cristina lopes acm research publications ~ 69 ms
+big data analytics in healthcare ~ 118 ms
+retrieval model based on tf-idf ~ 93 ms
+research papers on artificial intelligence ~ 89 ms
+
+
+Originally, longer queries and queries with stopwords performed poorly with respect to time.
+In order to optimize the engine for longer queries (8 or more words),
+we only calculated the cosine similarity scores for documents that 
+contain all of the query terms.
+
+Also, most if not all search results had poor relevance to the query.
+In order to solve the relevance issue, we implemented a tf-idf/cosine similarity
+ranking scheme, which improved the relevance of result documents.
+
