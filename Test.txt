@@ -9,16 +9,17 @@ cloud computing ~ 81 ms
 software testing ~ 50 ms
 ACM publications ~ 47 ms
 efficient algorithms ~ 32 ms
-deep learning ~ 38 ms
+research papers on artificial intelligence ~ 89 ms
 master of software engineering ~ 130 ms
 computer science, software engineering, programming, data structures, algorithms, machine learning, artificial intelligence, networking, database systems, operating systems, encryption, compilers, intelligent systems, and academic courses ~ 266 ms
 and the to ~ 133 ms
-and the to where then I they are for a is were ~ 289 ms
+and the to where then I they are for a is were ~ 222 ms
 impact of artificial intelligence on education ~ 132 ms
-cristina lopes acm research publications ~ 69 ms
+where the when what why about software programming career ~145 ms
 big data analytics in healthcare ~ 118 ms
 retrieval model based on tf-idf ~ 93 ms
-research papers on artificial intelligence ~ 89 ms
+Once upon a time in the world of big data, I was analyzing millions of records ~ 200 ms
+What are the ethical concerns surrounding large language models in AI? ~ 143 ms
 
 
 Originally, longer queries and queries with stopwords performed poorly with respect to time.
