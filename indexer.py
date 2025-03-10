@@ -11,11 +11,10 @@ import math
 
 
 
-
 """
 Our index structure:
 Index = {
-            'word1': [{docID: [frequency, tf-idf, [positions]]}, {docID2: [frequency, tf-idf, [positions]]}]
+            'word1': [{docID: [frequency, tf-idf]}, {docID2: [frequency, tf-idf]}]
 }
 """
 
@@ -50,14 +49,15 @@ class Indexer:
                 if file.endswith(".json"):
                     file_path = os.path.join(root, file)
                     # Step 2: extract raw HTML from json file
-                    raw_html, url = self.extract_text_from_json(file_path)
+                    raw_html, url, encoding = self.extract_text_from_json(file_path)
                     # Step 3: clean HTML, extract text and tokenize
-                    tokens = self.clean_text(raw_html)
-                    # Step 4: add tokens to the global inverted index
-                    self.build_inverted_index(tokens, doc_id=self.doc_count)
+                    tokens = self.clean_text(raw_html, encoding)
+                    if len(tokens) > 0:
+                        # Step 4: add tokens to the global inverted index
+                        self.build_inverted_index(tokens, doc_id=self.doc_count)
 
-                    self.docID_dict[self.doc_count] = url
-                    self.doc_count += 1
+                        self.docID_dict[self.doc_count] = url
+                        self.doc_count += 1
                     
                     # save partial index every 5000 docs
                     if self.doc_count % self.batch_size == 0:
@@ -84,12 +84,13 @@ class Indexer:
                 data = json.load(file)
                 html = data['content']
                 url = data['url']
-                return (html, url)
+                encoding = data['encoding']
+                return (html, url, encoding)
         except Exception as e:
             print(e)
           
 
-    def clean_text(self, raw_html: str) -> list:
+    def clean_text(self, raw_html: str, encoding) -> list:
         """
         Clean raw HTML, extract text, tokenize.
         :param raw_html: HTML content.
@@ -100,7 +101,7 @@ class Indexer:
         The tokenizer and stemmer both run in linear time based on number of tokens.
         """
         # Beautiful soup should automatically handle broken html
-        soup = BeautifulSoup(raw_html, 'lxml')
+        soup = BeautifulSoup(raw_html, 'lxml', from_encoding=encoding)
         # # Get only the human-readable text
         # text = soup.get_text()
 
@@ -135,21 +136,23 @@ class Indexer:
         inverted index.
         """
         # Loop through tokens and update inverted index
+        doc_length = len(tokens)
         for word in tokens:
             if word not in self.inverted_index:
                 self.inverted_index[word] = [] # list of postings
-                self.inverted_index[word].append({doc_id: [1]}) # first posting
+                self.inverted_index[word].append({doc_id: [1, doc_length]}) # first posting
             else:
                 # Check if the last posting corresponds to the current document.
                 last_posting = self.inverted_index[word][-1]
                 if next(iter(last_posting)) == doc_id:
                     # Update existing posting: increment frequency and add new position.
                     last_posting[doc_id][0] += 1
+                    # last_posting[doc_id][1].append(position)
                 else:
                     # Add a new posting for this document.
                     doc_ids = [next(iter(posting)) for posting in self.inverted_index[word]]
                     pos = bisect.bisect_left(doc_ids, doc_id)
-                    self.inverted_index[word].insert(pos, {doc_id: [1]})
+                    self.inverted_index[word].insert(pos, {doc_id: [1, doc_length]})
 
 
 
@@ -249,13 +252,14 @@ class Indexer:
                 # Compute document frequency (df) for this term.
                 df = len(merged_postings)
                 # Calculate the inverse document frequency using global document count (self.doc_count).
-                idf = math.log(self.doc_count / (df + 1))
+                idf = math.log(self.doc_count/(1+df))
 
                 # Calculate the tf-idf score for each document posting.
                 for posting in merged_postings:
                     doc_id = next(iter(posting))
                     freq = posting[doc_id][0]
-                    posting[doc_id].append(freq * idf)
+                    tf = (1 + math.log(1+freq)) / (1+ math.log(posting[doc_id][1]))
+                    posting[doc_id].append(tf * idf)
                 
 
                 # Write the merged result for the token to the output file.
@@ -310,7 +314,7 @@ if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     DATASET_PATH = os.path.join(BASE_DIR, "DEV")
-    OUTPUT_DIR = os.path.join(BASE_DIR, "index_files2") 
+    OUTPUT_DIR = os.path.join(BASE_DIR, "index_files") 
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
